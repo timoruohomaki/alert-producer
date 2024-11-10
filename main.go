@@ -4,9 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/messaging/azeventhubs"
@@ -27,6 +27,23 @@ func main() {
 	if connectionString == "" || eventHubName == "" {
 		log.Fatal("Event Hub connection string or name is not set in .env file")
 	}
+
+	// posting
+
+	build := 3
+	thisHost, _ := os.Hostname()
+	buildEnv := os.Getenv("BUILD_ENV")
+
+	fmt.Println()
+	fmt.Println("=============================================")
+	fmt.Println("=  Starting EventHub Data Pump...           =")
+	fmt.Println("=============================================")
+	fmt.Println("  Build version:    ", strconv.Itoa(build))
+	fmt.Println("  Host name:        ", thisHost)
+	fmt.Println("  Target Event Hub: ", eventHubName)
+	fmt.Println("  Environment:      ", buildEnv)
+	fmt.Println("=============================================")
+	fmt.Println()
 
 	// Read the first JSON object from the file
 	message, err := readFirstJSONObject("alerts.json")
@@ -53,7 +70,7 @@ func main() {
 
 // readFirstJSONObject reads the first JSON object from an array in a JSON file
 func readFirstJSONObject(filename string) ([]byte, error) {
-	fileContent, err := ioutil.ReadFile(filename)
+	fileContent, err := os.ReadFile(filename)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read file %s: %w", filename, err)
 	}
@@ -79,9 +96,11 @@ func readFirstJSONObject(filename string) ([]byte, error) {
 }
 
 // sendMessageToEventHub sends a JSON message to Azure Event Hub
-func sendMessageToEventHub(client *azeventhubs.Client, message []byte) error {
+
+func sendMessageToEventHub(client *azeventhubs.ProducerClient, message []byte) error {
+
 	// Create a sender to send messages
-	sender, err := client.NewProducerClient(nil)
+	sender, err := client.New(nil)
 	if err != nil {
 		return fmt.Errorf("failed to create producer client: %w", err)
 	}
