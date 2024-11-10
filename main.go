@@ -36,7 +36,7 @@ func main() {
 
 	fmt.Println()
 	fmt.Println("=============================================")
-	fmt.Println("=  Starting EventHub Data Pump...           =")
+	fmt.Println("=  Starting EventHub Alert Producer...      =")
 	fmt.Println("=============================================")
 	fmt.Println("  Build version:    ", strconv.Itoa(build))
 	fmt.Println("  Host name:        ", thisHost)
