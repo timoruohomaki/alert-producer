@@ -1,0 +1,12 @@
+[
+    {
+        "alertMessage": "Hello",
+        "relatedAsset": "V01",
+        "timestamp": "2024-10-09T12:17:02.000Z"
+    },
+    {
+        "alertMessage": "Hi",
+        "relatedAsset": "V02",
+        "timestamp": "2024-10-11T10:05:37.000Z"
+    }
+]
