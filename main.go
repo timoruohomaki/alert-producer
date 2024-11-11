@@ -1,5 +1,8 @@
 package main
 
+// for more details, see:
+// https://github.com/Azure/azure-sdk-for-go/blob/main/sdk/messaging/azeventhubs/example_producing_events_test.go
+
 import (
 	"context"
 	"encoding/json"
@@ -7,6 +10,7 @@ import (
 	"log"
 	"os"
 	"strconv"
+	"time"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/messaging/azeventhubs"
 	"github.com/joho/godotenv"
@@ -117,6 +121,8 @@ func sendMessageBatchToEventHub(client *azeventhubs.ProducerClient, message []by
 
 	newBatchOptions := &azeventhubs.EventDataBatchOptions{}
 
+	fmt.Println("Options set.")
+
 	batch, err := client.NewEventDataBatch(context.Background(), newBatchOptions)
 
 	if err != nil {
@@ -124,14 +130,28 @@ func sendMessageBatchToEventHub(client *azeventhubs.ProducerClient, message []by
 		panic(err)
 	}
 
+	fmt.Println("Batch created.")
+
 	fmt.Println("Producer sending %s events", len(events))
 
 	for i := 0; i < len(events); i++ {
+
 		err = batch.AddEventData(events[i], nil)
 
 		if err != nil {
+			fmt.Println("Failed to add event data to batch: ", err)
 			panic(err)
 		}
+	}
+
+	// Send the message batch to Event Hub
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	err = client.SendEventDataBatch(ctx, batch, nil)
+
+	if err != nil {
+		return fmt.Errorf("failed to send event batch: %w", err)
 	}
 
 	return nil
