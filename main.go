@@ -7,7 +7,6 @@ import (
 	"log"
 	"os"
 	"strconv"
-	"time"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/messaging/azeventhubs"
 	"github.com/joho/godotenv"
@@ -30,7 +29,7 @@ func main() {
 
 	// posting
 
-	build := 3
+	build := 4
 	thisHost, _ := os.Hostname()
 	buildEnv := os.Getenv("BUILD_ENV")
 
@@ -57,10 +56,12 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to create Event Hub client: %v", err)
 	}
+
 	defer client.Close(context.Background())
 
 	// Send JSON message to Event Hub
-	err = sendMessageToEventHub(client, message)
+
+	err = sendMessageBatchToEventHub(client, message)
 	if err != nil {
 		log.Fatalf("Failed to send message: %v", err)
 	}
@@ -68,7 +69,10 @@ func main() {
 	fmt.Println("Message sent to Event Hub successfully.")
 }
 
+// ====== func main ends here =======
+
 // readFirstJSONObject reads the first JSON object from an array in a JSON file
+
 func readFirstJSONObject(filename string) ([]byte, error) {
 	fileContent, err := os.ReadFile(filename)
 	if err != nil {
@@ -97,36 +101,43 @@ func readFirstJSONObject(filename string) ([]byte, error) {
 
 // sendMessageToEventHub sends a JSON message to Azure Event Hub
 
-func sendMessageToEventHub(client *azeventhubs.ProducerClient, message []byte) error {
+func sendMessageBatchToEventHub(client *azeventhubs.ProducerClient, message []byte) error {
 
-	// Create a sender to send messages
-	sender, err := client.New(nil)
-	if err != nil {
-		return fmt.Errorf("failed to create producer client: %w", err)
-	}
-	defer sender.Close(context.Background())
+	// create event batch
 
-	// Create the message batch
-	batch, err := sender.NewEventDataBatch(nil)
-	if err != nil {
-		return fmt.Errorf("failed to create event data batch: %w", err)
-	}
+	events := createEventsForSend()
 
-	// Add the JSON message to the batch
-	err = batch.AddEventData(&azeventhubs.EventData{
-		Body: message,
-	}, nil)
+	// create batch object
+
+	newBatchOptions := &azeventhubs.EventDataBatchOptions{}
+
+	batch, err := client.NewEventDataBatch(context.Background(), newBatchOptions)
+
 	if err != nil {
-		return fmt.Errorf("failed to add event data: %w", err)
+		panic(err)
 	}
 
-	// Send the message batch to Event Hub
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	err = sender.SendEventBatch(ctx, batch, nil)
-	if err != nil {
-		return fmt.Errorf("failed to send event batch: %w", err)
+	for i := 0; i < len(events); i++ {
+		err = batch.AddEventData(events[i], nil)
+
+		if err != nil {
+			panic(err)
+		}
 	}
 
 	return nil
+
+}
+
+func createEventsForSend() []*azeventhubs.EventData {
+
+	return []*azeventhubs.EventData{
+		{
+			Body: []byte("hello"),
+		},
+		{
+			Body: []byte("world"),
+		},
+	}
+
 }
