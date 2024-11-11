@@ -61,7 +61,10 @@ func main() {
 
 	// Send JSON message to Event Hub
 
+	fmt.Println("Ready to send message batch to Event Hub.")
+
 	err = sendMessageBatchToEventHub(client, message)
+
 	if err != nil {
 		log.Fatalf("Failed to send message: %v", err)
 	}
@@ -107,6 +110,8 @@ func sendMessageBatchToEventHub(client *azeventhubs.ProducerClient, message []by
 
 	events := createEventsForSend()
 
+	fmt.Println("Creating a batch with", len(events), "events.")
+
 	// create batch object
 
 	newBatchOptions := &azeventhubs.EventDataBatchOptions{}
@@ -116,6 +121,8 @@ func sendMessageBatchToEventHub(client *azeventhubs.ProducerClient, message []by
 	if err != nil {
 		panic(err)
 	}
+
+	fmt.Println("Producer sending %s events", len(events))
 
 	for i := 0; i < len(events); i++ {
 		err = batch.AddEventData(events[i], nil)
