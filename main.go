@@ -94,6 +94,7 @@ func readFirstJSONObject(filename string) ([]byte, error) {
 	}
 
 	// Marshal the first object back to JSON format
+	// TODO: eventually will send one object on every run or something
 	firstObject, err := json.Marshal(jsonData[0])
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal first JSON object: %w", err)
@@ -119,6 +120,7 @@ func sendMessageBatchToEventHub(client *azeventhubs.ProducerClient, message []by
 	batch, err := client.NewEventDataBatch(context.Background(), newBatchOptions)
 
 	if err != nil {
+		fmt.Println("Failed to create new data batch: ", err)
 		panic(err)
 	}
 
