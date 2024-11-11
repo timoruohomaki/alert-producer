@@ -6,11 +6,11 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"os"
 	"strconv"
-	"time"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/messaging/azeventhubs"
 	"github.com/joho/godotenv"
@@ -39,7 +39,7 @@ func main() {
 
 	fmt.Println()
 	fmt.Println("=============================================")
-	fmt.Println("=  Starting EventHub Alert Producer...      =")
+	fmt.Println("=  Starting Event Hub Alert Producer...     =")
 	fmt.Println("=============================================")
 	fmt.Println("  Build version:    ", strconv.Itoa(build))
 	fmt.Println("  Host name:        ", thisHost)
@@ -109,7 +109,7 @@ func readFirstJSONObject(filename string) ([]byte, error) {
 
 // sendMessageToEventHub sends a JSON message to Azure Event Hub
 
-func sendMessageBatchToEventHub(client *azeventhubs.ProducerClient, message []byte) error {
+func sendMessageBatchToEventHub(client *azeventhubs.ProducerClient, message []byte) {
 
 	// create event batch
 
@@ -123,7 +123,7 @@ func sendMessageBatchToEventHub(client *azeventhubs.ProducerClient, message []by
 
 	fmt.Println("Options set.")
 
-	batch, err := client.NewEventDataBatch(context.Background(), newBatchOptions)
+	batch, err := client.NewEventDataBatch(context.TODO(), newBatchOptions)
 
 	if err != nil {
 		fmt.Println("Failed to create new data batch: ", err)
@@ -132,29 +132,47 @@ func sendMessageBatchToEventHub(client *azeventhubs.ProducerClient, message []by
 
 	fmt.Println("Batch created.")
 
-	fmt.Println("Producer sending %s events", len(events))
+	fmt.Printf("Producer sending %d events", len(events))
 
 	for i := 0; i < len(events); i++ {
 
 		err = batch.AddEventData(events[i], nil)
 
-		if err != nil {
-			fmt.Println("Failed to add event data to batch: ", err)
+		if errors.Is(err, azeventhubs.ErrEventDataTooLarge) {
+			if batch.NumEvents() == 0 {
+				fmt.Println("This one event is too large for this batch.")
+				panic(err)
+			}
+
+			if err := client.SendEventDataBatch(context.TODO(), batch, nil); err != nil {
+				fmt.Println("This batch is full.")
+				panic(err)
+			}
+
+			tmpBatch, err := client.NewEventDataBatch(context.TODO(), newBatchOptions)
+
+			if err != nil {
+				fmt.Println("New event data batch set failed.")
+				panic(err)
+			}
+
+			batch = tmpBatch
+
+			// rewind so we can retry adding this event to a batch
+
+			i--
+
+		} else if err != nil {
 			panic(err)
 		}
 	}
 
-	// Send the message batch to Event Hub
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	err = client.SendEventDataBatch(ctx, batch, nil)
-
-	if err != nil {
-		return fmt.Errorf("failed to send event batch: %w", err)
+	// Send the remaining message batch to Event Hub
+	if batch.NumEvents() > 0 {
+		if err := client.SendEventDataBatch(context.TODO(), batch, nil); err != nil {
+			panic(err)
+		}
 	}
-
-	return nil
 
 }
 
